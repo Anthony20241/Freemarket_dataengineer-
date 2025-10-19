@@ -1,0 +1,2 @@
+Select *
+From Sales where sales_ID =2
