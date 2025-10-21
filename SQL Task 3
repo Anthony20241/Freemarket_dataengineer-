@@ -1,0 +1,54 @@
+--Task 3 
+
+WITH converted_transfers AS (
+    SELECT
+        it.senderaccountid,
+        c.vertical AS sender_vertical,
+        CASE 
+            WHEN it.currency = 'GBP' THEN it.amt
+            ELSE it.amt * der.rate
+        END AS amt_in_gbp,
+        DATE(it.transfertime) AS transfer_date
+    FROM
+        internaltransfers it
+        JOIN account sender_acc 
+            ON it.senderaccountid = sender_acc.accountid
+        JOIN client c 
+            ON sender_acc.clientid = c.clientid
+        LEFT JOIN dailyexchangerate der 
+            ON it.currency = der.fromcurrency
+            AND der.tocurrency = 'GBP'
+            AND DATE(it.transfertime) = der.date
+    WHERE
+        it.transferstatus = 'completed'
+        AND it.transfertime >= (CURRENT_DATE - INTERVAL '6 months')
+),
+
+daily_totals AS (
+    SELECT
+        sender_vertical,
+        transfer_date,
+        SUM(amt_in_gbp) AS total_daily_amount
+    FROM
+        converted_transfers
+    GROUP BY
+        sender_vertical,
+        transfer_date
+)
+
+SELECT
+    sender_vertical,
+    transfer_date,
+    ROUND(
+        AVG(total_daily_amount) OVER (
+            PARTITION BY sender_vertical
+            ORDER BY transfer_date
+            ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+        ), 
+        2
+    ) AS seven_day_moving_average
+FROM
+    daily_totals
+ORDER BY
+    sender_vertical,
+    transfer_date;
