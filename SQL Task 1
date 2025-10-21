@@ -1,0 +1,29 @@
+-----Task 1 
+
+SELECT
+    it.senderaccountid,
+    it.receiveraccountid,
+    it.amt,
+    it.currency,
+    it.transferstatus,
+    it.transfertime,
+    CASE
+        WHEN it.currency = 'GBP' THEN it.amt
+        ELSE it.amt * der.rate
+    END AS amount_in_gbp
+FROM
+    internaltransfers it
+    JOIN account sa ON it.senderaccountid = sa.accountid
+    JOIN client sc ON sa.clientid = sc.clientid
+    JOIN "group" sg ON sc.groupid = sg.groupid
+    JOIN account ra ON it.receiveraccountid = ra.accountid
+    JOIN client rc ON ra.clientid = rc.clientid
+    JOIN "group" rg ON rc.groupid = rg.groupid
+    LEFT JOIN dailyexchangerate der 
+        ON it.currency = der.fromcurrency
+        AND der.tocurrency = 'GBP'
+        AND DATE(it.transfertime) = der.date
+WHERE
+    it.transferstatus = 'completed'
+    AND it.transfertime BETWEEN '2025-01-01' AND '2025-03-31'
+    AND sg.grouppod <> rg.grouppod;
