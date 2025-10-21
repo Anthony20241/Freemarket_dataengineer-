@@ -1,0 +1,37 @@
+Task 2
+
+
+
+
+WITH live_clients AS (
+    SELECT DISTINCT
+        c.clientid
+    FROM client c
+    JOIN account a ON c.clientid = a.clientid
+    WHERE a.accountstatus = 'live'
+),
+gbp_transfers AS (
+    SELECT
+        it.senderaccountid,
+        it.receiveraccountid,
+        CASE
+            WHEN it.currency = 'GBP' THEN it.amt
+            ELSE it.amt * der.rate
+        END AS amount_in_gbp,
+        it.transfertime
+    FROM internaltransfers it
+    LEFT JOIN dailyexchangerate der
+           ON it.currency = der.fromcurrency
+          AND der.tocurrency = 'GBP'
+          AND DATE(it.transfertime) = der.date
+    WHERE it.transferstatus = 'completed'
+      AND it.transfertime >= DATE '2024-01-01'
+      AND it.transfertime <  DATE '2025-01-01'
+)
+SELECT 
+    SUM(g.amount_in_gbp) AS total_gbp_transfers
+FROM gbp_transfers g
+JOIN account sa ON g.senderaccountid = sa.accountid
+JOIN client c ON sa.clientid = c.clientid
+WHERE c.vertical = 'Gambling'
+  AND c.clientid IN (SELECT clientid FROM live_clients);
