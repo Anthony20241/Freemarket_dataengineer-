@@ -1,0 +1,37 @@
+--Task 1 .
+
+WITH AccountGroup AS (
+    SELECT 
+        A.AccountId,
+        G.GroupName,
+        G.GroupPod
+    FROM Account A
+    JOIN Client C ON A.ClientId = C.ClientId
+    JOIN [Group] G ON C.GroupId = G.GroupId
+)
+
+SELECT
+    IT.SenderAccountId,
+    SG.GroupName AS SenderGroupName,
+    SG.GroupPod  AS SenderGroupPod,
+    IT.ReceiverAccountId,
+    RG.GroupName AS ReceiverGroupName,
+    RG.GroupPod  AS ReceiverGroupPod,
+    IT.Amt,
+    IT.Currency,
+    IT.TransferStatus,
+    IT.TransferTime,
+    CASE 
+        WHEN IT.Currency = 'GBP' THEN IT.Amt
+        ELSE IT.Amt * DER.Rate
+    END AS AmountInGBP
+FROM InternalTransfers IT
+JOIN AccountGroup SG ON IT.SenderAccountId = SG.AccountId
+JOIN AccountGroup RG ON IT.ReceiverAccountId = RG.AccountId
+LEFT JOIN DailyExchangeRate DER 
+       ON IT.Currency = DER.FromCurrency
+      AND DER.ToCurrency = 'GBP'
+      AND DATE(IT.TransferTime) = DER.Date
+WHERE IT.TransferStatus = 'completed'
+  AND IT.TransferTime BETWEEN '2025-01-01' AND '2025-03-31'
+  AND SG.GroupPod <> RG.GroupPod;
